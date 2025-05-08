@@ -3,18 +3,18 @@
 #include <QTcpServer>
 #include <QDir>
 #include <numeric>
-#include <qcoreapplication.h>
-
+#include <QCoreApplication>
+#ifdef ENABLE_GUI
+#include <QDesktopServices>
+#include <QSystemTrayIcon>
+#else
+#include <QProcess>
+#endif
 
 class HttpFileServerPrivate
 {
 public:
-    explicit HttpFileServerPrivate()
-        :server(new QHttpServer)
-    {
-        // 目录浏览
-        server->route("/", &HttpFileServerPrivate::handleRequest);
-    }
+    explicit HttpFileServerPrivate() = default;
 
     static QHttpServerResponse handleRequest(const QUrl path)
     {
@@ -55,48 +55,51 @@ public:
         }
         return QHttpServerResponse("Directory not found\n", QHttpServerResponse::StatusCode::NotFound);
     }
-
+#ifdef ENABLE_GUI
+    bool showTrayIcon()
+    {
+        if (QSystemTrayIcon::isSystemTrayAvailable() && !trayIcon) {
+            trayIcon.reset(new QSystemTrayIcon(QIcon(APP_ICON), qApp));
+            trayIcon->setToolTip("Http File Server");
+            trayIcon->show();
+        }
+        if(isListening)
+        {
+            trayIcon->showMessage("提示", "Http File Server 正在运行...", QIcon(APP_ICON), 1000);
+        }
+        else
+        {
+            trayIcon->showMessage("提示", "Http File Server 停止运行", QIcon(APP_ICON), 1000);
+        }
+        return trayIcon != nullptr;
+    }
+#endif
     HttpFileServerPrivate(const HttpFileServerPrivate &) = delete;
     HttpFileServerPrivate& operator=(const HttpFileServerPrivate &) = delete;
 
     ~HttpFileServerPrivate() = default;
 
     QScopedPointer<QHttpServer> server;
+#ifdef ENABLE_GUI
+    QScopedPointer<QSystemTrayIcon> trayIcon;
+#endif
     static QString ROOT_DIR;
-
+    QHostAddress hostAddress = QHostAddress::Any;
+    quint16 port = 80;
+    bool isListening = false;
 };
 QString HttpFileServerPrivate::ROOT_DIR = "";
 HttpFileServer::HttpFileServer(QObject *parent)
     : QObject{parent},
     d_ptr{new HttpFileServerPrivate}
 {
-    auto tcpServer = new QTcpServer(this);
-    if (!tcpServer->listen(QHostAddress::Any, 80)) {
-        qCritical() << "监听失败：" << tcpServer->errorString();
-        return;
-    }
 
-    if (!d_ptr->server->bind(tcpServer)) {
-        qCritical() << "QHttpServer 绑定失败";
-        return;
-    }
-    qInfo() << "目录浏览服务器已启动：";
-    qInfo() << "浏览：http://127.0.0.1:80/";
     setRootDir(QCoreApplication::applicationDirPath());
 }
 
 HttpFileServer::~HttpFileServer()
 {
-    if (d_ptr->server)
-    {
-        auto servers = d_ptr->server->servers();
-        for(auto *server : std::as_const(servers))
-        {
-            server->close();
-            server->deleteLater();
-        }
-    }
-    d_ptr->server.reset();
+    close();
 }
 
 QString HttpFileServer::rootDir() const
@@ -110,4 +113,85 @@ void HttpFileServer::setRootDir(const QString &newRootDir)
         return;
     HttpFileServerPrivate::ROOT_DIR = newRootDir;
     emit rootDirChanged(HttpFileServerPrivate::ROOT_DIR);
+}
+
+bool HttpFileServer::listen(const QHostAddress &address, quint16 port)
+{
+    qInfo() << "监听地址:" << address.toString() << "端口:" << port;
+    if (isListening())
+    {
+        qWarning() << "服务器已经在监听中";
+        return isListening();
+    }
+    d_ptr->hostAddress = address;
+    d_ptr->port = port;
+    auto tcpServer = new QTcpServer(this);
+    if (d_ptr->isListening = tcpServer->listen(d_ptr->hostAddress, d_ptr->port) ; !isListening()) {
+
+        qCritical() << "监听失败：" << tcpServer->errorString();
+        tcpServer->close();
+        tcpServer->deleteLater();
+        return isListening();
+    }
+
+    d_ptr->server.reset(new QHttpServer(this));
+    d_ptr->server->route("/", &HttpFileServerPrivate::handleRequest);
+    if (d_ptr->isListening = d_ptr->server->bind(tcpServer) ; !isListening()) {
+        close();
+        qCritical() << "QHttpServer 绑定失败";
+        return isListening();
+    }
+
+    qInfo() << "目录浏览服务器已启动, 文件目录:" << HttpFileServerPrivate::ROOT_DIR;
+    qInfo() << "浏览：http://127.0.0.1:80/";
+#ifdef ENABLE_GUI
+    d_ptr->showTrayIcon();
+#endif
+    return isListening();
+}
+
+bool HttpFileServer::isListening() const
+{
+    return d_ptr->isListening;
+}
+
+void HttpFileServer::close()
+{
+    if (d_ptr->server)
+    {
+        auto servers = d_ptr->server->servers();
+        for(auto *server : std::as_const(servers))
+        {
+            server->close();
+            server->deleteLater();
+        }
+        d_ptr->isListening = false;
+    }
+#ifdef ENABLE_GUI
+    d_ptr->showTrayIcon();
+#endif
+    d_ptr->server.reset();
+}
+
+void HttpFileServer::openRootIndexInBrowser()
+{
+    if (isListening())
+    {
+        QHostAddress address = d_ptr->hostAddress == QHostAddress::Any ? QHostAddress::LocalHost : d_ptr->hostAddress;
+#ifdef ENABLE_GUI
+        QDesktopServices::openUrl(QString("http://%1:%2").arg(address.toString(), QString::number(d_ptr->port)));
+#else
+        QProcess::startDetached("cmd", {"/c", "start", QString("http://%1:%2").arg(address.toString(), QString::number(d_ptr->port))});
+#endif
+    }
+}
+
+QHostAddress HttpFileServer::hostAddress() const
+{
+    return d_ptr->hostAddress;
+}
+
+quint16 HttpFileServer::port() const
+{
+    return d_ptr->port;
 }

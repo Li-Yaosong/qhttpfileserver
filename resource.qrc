@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>httpfileserver.ico</file>
+    </qresource>
+</RCC>
