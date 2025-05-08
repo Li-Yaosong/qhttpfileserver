@@ -70,6 +70,7 @@ public:
         else
         {
             trayIcon->showMessage("提示", "Http File Server 停止运行", QIcon(APP_ICON), 1000);
+            QThread::msleep(500);
         }
         return trayIcon != nullptr;
     }
