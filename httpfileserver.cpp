@@ -7,6 +7,7 @@
 #ifdef ENABLE_GUI
 #include <QDesktopServices>
 #include <QSystemTrayIcon>
+#include <QMenu>
 #else
 #include <QProcess>
 #endif
@@ -61,6 +62,10 @@ public:
         if (QSystemTrayIcon::isSystemTrayAvailable() && !trayIcon) {
             trayIcon.reset(new QSystemTrayIcon(QIcon(APP_ICON), qApp));
             trayIcon->setToolTip("Http File Server");
+            trayIcon->setContextMenu(new QMenu);
+            auto *exitAction = new QAction("Exit", trayIcon.data());
+            QAction::connect(exitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
+            trayIcon->contextMenu()->addAction(exitAction);
             trayIcon->show();
         }
         if(isListening)
