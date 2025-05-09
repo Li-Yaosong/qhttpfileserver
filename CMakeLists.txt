@@ -20,7 +20,7 @@ if(ENABLE_GUI)
 endif()
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS ${QT_MODULES})
 
-add_executable(httpserver
+add_executable(httpserver WIN32
   main.cpp
   httpfileserver.h httpfileserver.cpp
   resource.qrc
