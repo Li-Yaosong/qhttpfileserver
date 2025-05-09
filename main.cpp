@@ -13,6 +13,8 @@ using Application = QCoreApplication;
 
 int main(int argc, char *argv[])
 {
+    Application::setQuitOnLastWindowClosed(false);
+
     Application app(argc, argv);
     QVersionNumber version(0, 0, 1);
     Application::setApplicationVersion(version.toString());
@@ -21,11 +23,11 @@ int main(int argc, char *argv[])
     parser.addHelpOption();
     parser.addVersionOption();
     QCommandLineOption pathOption(QStringList() << "P" << "path",
-        "Path to serve files from.");
+        "Path to serve files from.", QString("./"));
     QCommandLineOption addressOption(QStringList() << "a" << "address",
-        "Address to bind to.");
+        "Address to bind to.", QHostAddress(QHostAddress::Any).toString());
     QCommandLineOption portOption(QStringList() << "p" << "port",
-        "Port to listen on.");
+        "Port to listen on.", QString::number(80));
     QCommandLineOption browserOption(QStringList() << "b" << "browser",
         "Open the root index in the default web browser.");
     QList<QCommandLineOption> options = {pathOption, addressOption, portOption, browserOption};
