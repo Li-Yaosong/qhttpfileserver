@@ -4,6 +4,7 @@
 #include <QDir>
 #include <numeric>
 #include <QCoreApplication>
+#include <QMimeDatabase>
 #ifdef ENABLE_GUI
 #include <QDesktopServices>
 #include <QSystemTrayIcon>
@@ -17,45 +18,66 @@ class HttpFileServerPrivate
 public:
     explicit HttpFileServerPrivate() = default;
 
-    static QHttpServerResponse handleRequest(const QUrl path)
+    static void handleRequest(const QUrl path, const QHttpServerRequest &request, QHttpServerResponder &responder)
     {
         qDebug() << "path:" << path;
-
         QFileInfo fileInfo(ROOT_DIR + "/" + path.toString());
         if (!fileInfo.exists())
-            return QHttpServerResponse("Directory or file not found\n", QHttpServerResponse::StatusCode::NotFound);
+            return responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
+                                   QHttpServerResponse::StatusCode::NotFound);
         if(fileInfo.isFile())
-            return QHttpServerResponse::fromFile(fileInfo.absoluteFilePath());
-
-        auto html = QString("<html><body><h3>Index of /%1</h3><ul>").arg(path.toString());
-
-        QDir dir(ROOT_DIR);
-        if(dir.cd(path.toString()))
         {
-            if (!path.isEmpty()) {
-                auto subPathList = path.toString().split("/", Qt::SkipEmptyParts);
-                subPathList.removeLast();
-                html += QString("<li><a href=\"/%1\">../</a></li>").arg(subPathList.join("/"));
+
+            if (QFile *file = new QFile(fileInfo.absoluteFilePath()); file->open(QIODevice::ReadOnly)) {
+                QMimeDatabase db;
+                QByteArray mime = db.mimeTypeForFile(fileInfo).name().toUtf8();
+                return responder.write(file, mime);
             }
-
-            const auto infoList = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
-            html += std::accumulate(infoList.begin(), infoList.end(), QString(),
-                    [&path](const QString &temp, const QFileInfo &info) {
-                        QString fileName = info.isDir() ? info.fileName() + "/" : info.fileName();
-                        QString filePathLink = fileName;
-                        if(!path.isEmpty())
-                        {
-                            path.toString().endsWith("/") ? filePathLink.prepend( path.toString())
-                                                          : filePathLink.prepend( path.toString() + "/");
-                        }
-                        return temp + QString("<li><a href=\"/%1\">%2</a></li>").arg(filePathLink, fileName);
-                    });
-
-            html += "</ul></body></html>";
-            return QHttpServerResponse("text/html", html.toUtf8());
+            else
+            {
+                delete file;
+                return responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
+                                       QHttpServerResponse::StatusCode::InternalServerError);
+            }
         }
-        return QHttpServerResponse("Directory not found\n", QHttpServerResponse::StatusCode::NotFound);
+        else if(fileInfo.isDir())
+        {
+            auto html = QString("<html><body><h3>Index of /%1</h3><ul>").arg(path.toString());
+
+            QDir dir(ROOT_DIR);
+            if(dir.cd(path.toString()))
+            {
+                if (!path.isEmpty()) {
+                    auto subPathList = path.toString().split("/", Qt::SkipEmptyParts);
+                    subPathList.removeLast();
+                    html += QString("<li><a href=\"/%1\">../</a></li>").arg(subPathList.join("/"));
+                }
+
+                const auto infoList = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
+                html += std::accumulate(infoList.begin(), infoList.end(), QString(),
+                        [&path](const QString &temp, const QFileInfo &info) {
+                            QString fileName = info.isDir() ? info.fileName() + "/" : info.fileName();
+                            QString filePathLink = fileName;
+                            if(!path.isEmpty())
+                            {
+                                path.toString().endsWith("/") ? filePathLink.prepend( path.toString())
+                                                              : filePathLink.prepend( path.toString() + "/");
+                            }
+                            return temp + QString("<li><a href=\"/%1\">%2</a></li>").arg(filePathLink, fileName);
+                        });
+                html += "</ul></body></html>";
+                responder.write(html.toUtf8(), "text/html");
+            }
+            else
+            {
+                qWarning() << "无法访问目录" << path.toString();
+
+                responder.write("{\"message\": \"Directory access denied\"}", "application/json",
+                                QHttpServerResponse::StatusCode::Forbidden);
+            }
+        }
     }
+
 #ifdef ENABLE_GUI
     bool showTrayIcon()
     {
@@ -80,6 +102,7 @@ public:
         return trayIcon != nullptr;
     }
 #endif
+
     HttpFileServerPrivate(const HttpFileServerPrivate &) = delete;
     HttpFileServerPrivate& operator=(const HttpFileServerPrivate &) = delete;
 
