@@ -17,6 +17,37 @@
 class HttpFileServerPrivate : public QObject
 {
 public:
+    struct HtmlItemAccumulator {
+    public:
+        HtmlItemAccumulator(const QString& path) : pathStr(path) {}
+
+        QString operator()(const QString& list, const QFileInfo& info) const {
+            QString fileName = info.fileName();
+            QString fileSizeStr;
+
+            if(info.isDir()) {
+                fileName += "/";
+            } else {
+                quint64 fileSize = info.size();
+                if (fileSize >= 1024*1024*1024)
+                    fileSizeStr = QString::number(fileSize / (1024*1024*1024)) + " GB";
+                else if (fileSize >= 1024*1024)
+                    fileSizeStr = QString::number(fileSize / (1024*1024)) + " MB";
+                else if (fileSize >= 1024)
+                    fileSizeStr = QString::number(fileSize / 1024) + " KB";
+                else
+                    fileSizeStr = QString::number(fileSize) + " B";
+            }
+
+            return list + itemTemplate(info.isDir() ? "icon-folder-close" : "icon-file",
+                                       fileName,
+                                       pathStr + fileName,
+                                       fileSizeStr,
+                                       info.lastModified().toString("yyyy-MM-dd hh:mm:ss"));
+        }
+    private:
+        QString pathStr;
+    };
     explicit HttpFileServerPrivate(HttpFileServer *parent)
         :q_ptr{parent}
     {
@@ -69,7 +100,6 @@ public:
         {
             return respondFile(responder, pathStr.replace("*static", ":/html/static"));
         }
-
         QDir dir(ROOT_DIR);
         QFileInfo fileInfo(dir, pathStr);
         if (!fileInfo.exists())
@@ -99,15 +129,8 @@ public:
                 }
 
                 const auto infoList = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
-                html.replace("${file-list}$", std::accumulate(infoList.begin(), infoList.end(), QString(),
-                        [&pathStr](const QString &list, const QFileInfo &info) {
-                            QString fileName = info.isDir() ? info.fileName() + "/" : info.fileName();
-                            return list + itemTemplate(info.isDir() ? "icon-folder-close" : "icon-file",
-                                                        fileName,
-                                                        pathStr + fileName,
-                                                        info.isDir() ? "" : QString::number(info.size()),
-                                                        info.lastModified().toString("yyyy-MM-dd hh:mm:ss"));
-                        }));
+                html.replace("${file-list}$",
+                            std::accumulate(infoList.begin(), infoList.end(), QString(), HtmlItemAccumulator(pathStr)));
                 responder.write(html.toUtf8(), "text/html");
             }
             else
@@ -133,7 +156,8 @@ public:
     {
         if (QSystemTrayIcon::isSystemTrayAvailable() && !trayIcon) {
             trayIcon.reset(new QSystemTrayIcon(QIcon(APP_ICON), qApp));
-            QSystemTrayIcon::connect(trayIcon.data(), &QSystemTrayIcon::activated, this ,&HttpFileServerPrivate::activateTrayIcon);
+            QSystemTrayIcon::connect(trayIcon.data(), &QSystemTrayIcon::activated,
+                                     this ,&HttpFileServerPrivate::activateTrayIcon);
             trayIcon->setToolTip("Http File Server");
             trayIcon->setContextMenu(new QMenu);
             auto *exitAction = new QAction("Exit", trayIcon.data());
@@ -260,10 +284,16 @@ void HttpFileServer::openRootIndexInBrowser()
     if (isListening())
     {
         QHostAddress address = d_ptr->hostAddress == QHostAddress::Any ? QHostAddress::LocalHost : d_ptr->hostAddress;
+        QString addressStr = address.toString();
+        QString portStr = QString::number(d_ptr->port);
 #ifdef ENABLE_GUI
-        QDesktopServices::openUrl(QString("http://%1:%2").arg(address.toString(), QString::number(d_ptr->port)));
-#else
-        QProcess::startDetached("cmd", {"/c", "start", QString("http://%1:%2").arg(address.toString(), QString::number(d_ptr->port))});
+        QDesktopServices::openUrl(QString("http://%1:%2").arg(addressStr, portStr));
+#elif defined(Q_OS_WIN)
+        QProcess::startDetached("cmd", {"/c", "start", QString("http://%1:%2").arg(addressStr, portStr)});
+#elif defined(Q_OS_MAC)
+        QProcess::startDetached("open", {"http://%1:%2".arg(addressStr, portStr)});
+#elif defined(Q_OS_UNIX)
+        QProcess::startDetached("xdg-open", {"http://%1:%2".arg(addressStr, portStr)});
 #endif
     }
 }
