@@ -21,15 +21,22 @@ if(ENABLE_GUI)
 endif()
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS ${QT_MODULES})
 
-add_executable(httpserver WIN32
+set(PROJECT_SOURCES
   main.cpp
   httpfileserver.h httpfileserver.cpp
   resource.qrc
   app_icon.rc
 )
-target_link_libraries(httpserver Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::HttpServer)
+
+if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+    qt_add_executable(httpserver MANUAL_FINALIZATION ${PROJECT_SOURCES})
+else()
+    add_executable(httpserver ${PROJECT_SOURCES})
+endif()
+
+target_link_libraries(httpserver PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::HttpServer)
 if(ENABLE_GUI)
-  target_link_libraries(httpserver Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Widgets)
+  target_link_libraries(httpserver PRIVATE Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Widgets)
 endif()
 
 include(GNUInstallDirs)
