@@ -9,14 +9,19 @@
 #include <QDesktopServices>
 #include <QSystemTrayIcon>
 #include <QMenu>
+#include <QFileDialog>
 #else
 #include <QProcess>
 #endif
 
-class HttpFileServerPrivate
+class HttpFileServerPrivate : public QObject
 {
 public:
-    explicit HttpFileServerPrivate() = default;
+    explicit HttpFileServerPrivate(HttpFileServer *parent)
+        :q_ptr{parent}
+    {
+
+    }
 
     static void handleRequest(const QUrl path, const QHttpServerRequest &request, QHttpServerResponder &responder)
     {
@@ -77,12 +82,22 @@ public:
             }
         }
     }
-
+    void activateTrayIcon(QSystemTrayIcon::ActivationReason reason)
+    {
+        if (reason == QSystemTrayIcon::Trigger) {
+            QString directory = QFileDialog::getExistingDirectory(nullptr, "选择文件目录", ROOT_DIR);
+            if (!directory.isEmpty()) {
+                q_ptr->setRootDir(directory);
+                qDebug() << "选择的目录:" << directory;
+            }
+        }
+    }
 #ifdef ENABLE_GUI
     bool showTrayIcon()
     {
         if (QSystemTrayIcon::isSystemTrayAvailable() && !trayIcon) {
             trayIcon.reset(new QSystemTrayIcon(QIcon(APP_ICON), qApp));
+            QSystemTrayIcon::connect(trayIcon.data(), &QSystemTrayIcon::activated, this ,&HttpFileServerPrivate::activateTrayIcon);
             trayIcon->setToolTip("Http File Server");
             trayIcon->setContextMenu(new QMenu);
             auto *exitAction = new QAction("Exit", trayIcon.data());
@@ -116,11 +131,13 @@ public:
     QHostAddress hostAddress = QHostAddress::Any;
     quint16 port = 80;
     bool isListening = false;
+private:
+    HttpFileServer *q_ptr = nullptr;
 };
 QString HttpFileServerPrivate::ROOT_DIR = "";
 HttpFileServer::HttpFileServer(QObject *parent)
     : QObject{parent},
-    d_ptr{new HttpFileServerPrivate}
+    d_ptr{new HttpFileServerPrivate(this)}
 {
 
     setRootDir(QCoreApplication::applicationDirPath());
