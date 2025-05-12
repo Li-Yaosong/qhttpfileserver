@@ -1,5 +1,13 @@
 <RCC>
     <qresource prefix="/">
         <file>httpfileserver.ico</file>
+        <file>html/file-list-item-template.html</file>
+        <file>html/index-template.html</file>
+        <file>html/static/bootstrap.css</file>
+        <file>html/static/bootstrap-download-index.css</file>
+        <file>html/static/normalize.css</file>
+        <file>html/static/style.css</file>
+        <file>html/static/glyphicons-halflings.png</file>
+        <file>html/static/logo.png</file>
     </qresource>
 </RCC>

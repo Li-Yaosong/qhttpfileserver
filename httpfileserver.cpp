@@ -22,61 +22,97 @@ public:
     {
 
     }
-
+    static void respondFile(QHttpServerResponder &responder, const QString &filePath)
+    {
+        if (QFile file(filePath); file.open(QIODevice::ReadOnly)) {
+            QMimeDatabase db;
+            QByteArray mime = db.mimeTypeForFile(filePath).name().toUtf8();
+            responder.write(&file, mime);
+        }
+        else
+        {
+            qWarning() << "无法打开文件" << filePath;
+            responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
+                            QHttpServerResponse::StatusCode::InternalServerError);
+        }
+    }
+    static QString readTemplateFile(const QString &filePath)
+    {
+        if (QFile file(filePath); !file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning() << "无法打开模板文件";
+            return QString();
+        }
+        else
+        {
+            QString html = file.readAll();
+            file.close();
+            return html;
+        }
+    }
+    static QString itemTemplate(const QString &icon,const QString &displayName,
+                                        const QString &href,
+                                        const QString &fileSize = "",
+                                        const QString &lastModified = "")
+    {
+        QString html = readTemplateFile(":/html/file-list-item-template.html");
+        html.replace("${item-icon}$", icon);
+        html.replace("${display-name}$", displayName);
+        html.replace("${href}$", href);
+        html.replace("${file-size}$", fileSize);
+        html.replace("${last-modified}$", lastModified);
+        return html;
+    }
     static void handleRequest(const QUrl path, const QHttpServerRequest &request, QHttpServerResponder &responder)
     {
-        qDebug() << "path:" << path;
-        QFileInfo fileInfo(ROOT_DIR + "/" + path.toString());
+        QString pathStr = path.toString();
+        if(pathStr.startsWith("*static"))
+        {
+            return respondFile(responder, pathStr.replace("*static", ":/html/static"));
+        }
+
+        QDir dir(ROOT_DIR);
+        QFileInfo fileInfo(dir, pathStr);
         if (!fileInfo.exists())
             return responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
                                    QHttpServerResponse::StatusCode::NotFound);
         if(fileInfo.isFile())
         {
-
-            if (QFile *file = new QFile(fileInfo.absoluteFilePath()); file->open(QIODevice::ReadOnly)) {
-                QMimeDatabase db;
-                QByteArray mime = db.mimeTypeForFile(fileInfo).name().toUtf8();
-                return responder.write(file, mime);
-            }
-            else
-            {
-                delete file;
-                return responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
-                                       QHttpServerResponse::StatusCode::InternalServerError);
-            }
+            return respondFile(responder, fileInfo.absoluteFilePath());
         }
         else if(fileInfo.isDir())
         {
-            auto html = QString("<html><body><h3>Index of /%1</h3><ul>").arg(path.toString());
+            QString html = readTemplateFile(":/html/index-template.html");
 
-            QDir dir(ROOT_DIR);
-            if(dir.cd(path.toString()))
+            if(dir.cd(pathStr))
             {
-                if (!path.isEmpty()) {
-                    auto subPathList = path.toString().split("/", Qt::SkipEmptyParts);
+                if (!pathStr.isEmpty()) {
+                    auto subPathList = pathStr.split("/", Qt::SkipEmptyParts);
+                    pathStr = subPathList.join("/") + "/";
                     subPathList.removeLast();
-                    html += QString("<li><a href=\"/%1\">../</a></li>").arg(subPathList.join("/"));
+                    QString subPath = subPathList.join("/");
+                    QString parentDirHtml = itemTemplate("icon-arrow-up", "Parent Directory", subPath);
+                    html.replace("${Parent Directory}$", parentDirHtml);
+                }
+                else
+                {
+                    html.replace("${Parent Directory}$", "");
                 }
 
                 const auto infoList = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
-                html += std::accumulate(infoList.begin(), infoList.end(), QString(),
-                        [&path](const QString &temp, const QFileInfo &info) {
+                html.replace("${file-list}$", std::accumulate(infoList.begin(), infoList.end(), QString(),
+                        [&pathStr](const QString &list, const QFileInfo &info) {
                             QString fileName = info.isDir() ? info.fileName() + "/" : info.fileName();
-                            QString filePathLink = fileName;
-                            if(!path.isEmpty())
-                            {
-                                path.toString().endsWith("/") ? filePathLink.prepend( path.toString())
-                                                              : filePathLink.prepend( path.toString() + "/");
-                            }
-                            return temp + QString("<li><a href=\"/%1\">%2</a></li>").arg(filePathLink, fileName);
-                        });
-                html += "</ul></body></html>";
+                            return list + itemTemplate(info.isDir() ? "icon-folder-close" : "icon-file",
+                                                        fileName,
+                                                        pathStr + fileName,
+                                                        info.isDir() ? "" : QString::number(info.size()),
+                                                        info.lastModified().toString("yyyy-MM-dd hh:mm:ss"));
+                        }));
                 responder.write(html.toUtf8(), "text/html");
             }
             else
             {
-                qWarning() << "无法访问目录" << path.toString();
-
+                qWarning() << "无法访问目录" << pathStr;
                 responder.write("{\"message\": \"Directory access denied\"}", "application/json",
                                 QHttpServerResponse::StatusCode::Forbidden);
             }

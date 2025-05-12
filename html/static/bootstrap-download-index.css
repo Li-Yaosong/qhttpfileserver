@@ -1,0 +1,144 @@
+[class^="icon-"], [class*=" icon-"] {
+    display: inline-block;
+    width: 14px;
+    height: 13px;
+    background-image: url("glyphicons-halflings.png");
+    background-position: 14px 14px;
+    background-repeat: no-repeat;
+    *margin-right: .3em
+}
+
+.icon-arrow-up {
+    background-position: -289px -96px
+}
+
+.icon-file {
+    background-position: -24px -24px
+}
+
+.icon-folder-close {
+    background-position: -384px -120px
+}
+
+.icon-folder-open {
+    background-position: -408px -120px
+}
+
+.icon-chevron-up {
+    background-position: -288px -120px
+}
+
+.icon-chevron-down {
+    background-position: -313px -119px
+}
+
+table {
+    max-width: 100%;
+    background-color: transparent;
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 100%;
+    margin-bottom: 2em;
+    font-size: .98em
+}
+
+table th, table td {
+    padding: 5px;
+    line-height: 1.6em;
+    text-align: left;
+    vertical-align: top;
+    border-top: 1px solid #d3d7cf
+}
+
+table th {
+    font-weight: bold;
+    color: #44A51C;
+    text-shadow: 0 1px 0 #fff
+}
+
+table thead th {
+    vertical-align: bottom
+}
+
+tr:first-child th, tr:first-child td {
+    border-top: 0
+}
+
+tr:nth-child(2) {
+    display: none
+}
+
+td:first-child, th:first-child
+{
+    display:none
+}
+
+th {
+    margin: 0;
+    font-weight: normal!important;
+    color: #44A51C!important;
+    text-rendering: optimizelegibility;
+    text-shadow: 0 1px 0 white;
+    font-size: 1.2em
+}
+
+table tbody+tbody {
+    border-top: 2px solid #d3d7cf
+}
+
+tbody tr:nth-child(odd) td {
+    background-color:rgba(0,0,0,0.02)
+}
+
+hr {
+    display: none
+}
+
+h1 {
+    display:none
+}
+
+address {
+    display: none
+}
+
+body address:last-child {
+    display: block;
+    font-style: normal;
+    font-size: .85em;
+    text-align: center;
+    margin: 0
+}
+
+.alert-info {
+    padding: 8px;
+    padding-bottom: 5px
+}
+
+pre {
+    background-color: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    margin-left: auto;
+    margin-right: auto;
+    width: auto!important
+}
+
+pre i {
+    margin-bottom: -2px
+}
+
+.alert-info {
+    min-height: 25px
+}
+
+.message-toggle {
+    cursor: pointer;
+    margin-top: 3px
+}
+
+.message-title {
+    position: absolute
+}
