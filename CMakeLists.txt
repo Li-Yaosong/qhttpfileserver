@@ -24,6 +24,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS ${QT_MODULES})
 set(PROJECT_SOURCES
   main.cpp
   httpfileserver.h httpfileserver.cpp
+  util.h util.cpp
   resource.qrc
   app_icon.rc
 )
