@@ -27,12 +27,16 @@ public:
 
     void activateTrayIcon(QSystemTrayIcon::ActivationReason reason)
     {
-        if (reason == QSystemTrayIcon::Trigger) {
-            QString directory = QFileDialog::getExistingDirectory(nullptr, "选择文件目录", q_ptr->rootDir());
-            if (!directory.isEmpty()) {
-                q_ptr->setRootDir(directory);
-                qDebug() << "选择的目录:" << directory;
+        switch (reason) {
+        case QSystemTrayIcon::Unknown:
+        case QSystemTrayIcon::Context:
+        case QSystemTrayIcon::DoubleClick:
+        case QSystemTrayIcon::Trigger:
+            if (isListening) {
+                q_ptr->openRootIndexInBrowser();
             }
+        case QSystemTrayIcon::MiddleClick:
+            break;
         }
     }
 #ifdef ENABLE_GUI
@@ -44,9 +48,8 @@ public:
                                      this ,&HttpFileServerPrivate::activateTrayIcon);
             trayIcon->setToolTip("Http File Server");
             trayIcon->setContextMenu(new QMenu);
-            auto *exitAction = new QAction("Exit", trayIcon.data());
-            QAction::connect(exitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
-            trayIcon->contextMenu()->addAction(exitAction);
+            trayIcon->contextMenu()->addAction("Change Directory", this, &HttpFileServerPrivate::changeRootDir);
+            trayIcon->contextMenu()->addAction("Exit", qApp, &QCoreApplication::quit);
             trayIcon->show();
         }
         if(isListening)
@@ -61,7 +64,14 @@ public:
         return trayIcon != nullptr;
     }
 #endif
-
+    void changeRootDir()
+    {
+        QString directory = QFileDialog::getExistingDirectory(nullptr, "选择文件目录", q_ptr->rootDir());
+        if (!directory.isEmpty()) {
+            q_ptr->setRootDir(directory);
+            qDebug() << "选择的目录:" << directory;
+        }
+    }
     HttpFileServerPrivate(const HttpFileServerPrivate &) = delete;
     HttpFileServerPrivate& operator=(const HttpFileServerPrivate &) = delete;
 
