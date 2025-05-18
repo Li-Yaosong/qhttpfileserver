@@ -23,14 +23,14 @@ Util::Util() {}
 
 QString UtilPrivate::readTemplateFile(const QString &filePath)
 {
-    if (QFile file(filePath); !file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (auto *file = new QFile(filePath); !file->open(QIODevice::ReadOnly | QIODevice::Text)) {
         qWarning() << "无法打开模板文件";
         return QString();
     }
     else
     {
-        QString html = file.readAll();
-        file.close();
+        QString html = file->readAll();
+        file->close();
         return html;
     }
 }
