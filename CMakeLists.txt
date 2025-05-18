@@ -9,7 +9,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(ENABLE_GUI "Enable GUI" ON)
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install")
+
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 list(APPEND QT_MODULES Core HttpServer)
 if(ENABLE_GUI)
@@ -30,7 +30,18 @@ set(PROJECT_SOURCES
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+  if(APPLE)
+    qt_add_executable(httpserver MACOSX_BUNDLE ${PROJECT_SOURCES})
+    add_custom_command(TARGET httpserver POST_BUILD
+      COMMAND ${MACDEPLOYQT_EXECUTABLE}${QT_VERSION_MAJOR}
+              $<TARGET_BUNDLE_DIR:httpserver>
+              -always-overwrite -dmg
+    )
+  elseif(WIN32)
+    qt_add_executable(httpserver WIN32 ${PROJECT_SOURCES})
+  else()
     qt_add_executable(httpserver MANUAL_FINALIZATION ${PROJECT_SOURCES})
+  endif()
 else()
     add_executable(httpserver ${PROJECT_SOURCES})
 endif()
@@ -39,9 +50,14 @@ target_link_libraries(httpserver PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERS
 if(ENABLE_GUI)
   target_link_libraries(httpserver PRIVATE Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Widgets)
 endif()
+if(APPLE)
+  install(FILES ${CMAKE_BINARY_DIR}/httpserver.dmg
+    DESTINATION ${CMAKE_INSTALL_PREFIX}
+  )
+else()
+  install(TARGETS httpserver
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+endif()
 
-include(GNUInstallDirs)
-install(TARGETS httpserver
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
