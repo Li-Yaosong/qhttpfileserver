@@ -30,10 +30,10 @@ QString Util::readTemplateFile(const QString &filePath)
 
 void Util::respondFile(QHttpServerResponder &responder, const QString &filePath)
 {
-    if (QFile file(filePath); file.open(QIODevice::ReadOnly)) {
+    if (auto *file = new QFile(filePath); file->open(QIODevice::ReadOnly)) {
         QMimeDatabase db;
         QByteArray mime = db.mimeTypeForFile(filePath).name().toUtf8();
-        responder.write(&file, mime);
+        responder.write(file, mime);
     }
     else
     {
