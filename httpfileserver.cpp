@@ -1,4 +1,6 @@
 #include "httpfileserver.h"
+#include "filerouter.h"
+#include "router.h"
 #include <QHttpServer>
 #include <QTcpServer>
 #include <QDir>
@@ -26,7 +28,7 @@ public:
     void activateTrayIcon(QSystemTrayIcon::ActivationReason reason)
     {
         if (reason == QSystemTrayIcon::Trigger) {
-            QString directory = QFileDialog::getExistingDirectory(nullptr, "选择文件目录", ROOT_DIR);
+            QString directory = QFileDialog::getExistingDirectory(nullptr, "选择文件目录", q_ptr->rootDir());
             if (!directory.isEmpty()) {
                 q_ptr->setRootDir(directory);
                 qDebug() << "选择的目录:" << directory;
@@ -63,20 +65,30 @@ public:
     HttpFileServerPrivate(const HttpFileServerPrivate &) = delete;
     HttpFileServerPrivate& operator=(const HttpFileServerPrivate &) = delete;
 
-    ~HttpFileServerPrivate() = default;
+    ~HttpFileServerPrivate()
+    {
+        QStringList keys = routerMap.keys();
+        for (const QString &key : std::as_const(keys))
+        {
+            if (routerMap[key])
+            {
+                routerMap[key]->deleteLater();
+            }
+        }
+        routerMap.clear();
+    }
 
     QScopedPointer<QHttpServer> server;
 #ifdef ENABLE_GUI
     QScopedPointer<QSystemTrayIcon> trayIcon;
 #endif
-    static QString ROOT_DIR;
+    RouterMap routerMap;
     QHostAddress hostAddress = QHostAddress::Any;
     quint16 port = 80;
     bool isListening = false;
 private:
     HttpFileServer *q_ptr = nullptr;
 };
-QString HttpFileServerPrivate::ROOT_DIR = "";
 HttpFileServer::HttpFileServer(QObject *parent)
     : QObject{parent},
     d_ptr{new HttpFileServerPrivate(this)}
@@ -110,7 +122,7 @@ bool HttpFileServer::listen(const QHostAddress &address, quint16 port)
     }
     d_ptr->hostAddress = address;
     d_ptr->port = port;
-    auto tcpServer = new QTcpServer(this);
+    auto *tcpServer = new QTcpServer(this);
     if (d_ptr->isListening = tcpServer->listen(d_ptr->hostAddress, d_ptr->port) ; !isListening()) {
 
         qCritical() << "监听失败：" << tcpServer->errorString();
@@ -120,14 +132,14 @@ bool HttpFileServer::listen(const QHostAddress &address, quint16 port)
     }
 
     d_ptr->server.reset(new QHttpServer(this));
-    d_ptr->server->route("/", &Util::handleRequest);
     if (d_ptr->isListening = d_ptr->server->bind(tcpServer) ; !isListening()) {
         close();
         qCritical() << "QHttpServer 绑定失败";
         return isListening();
     }
+    addRouter(QSharedPointer<FileRouter>::create());
 
-    qInfo() << "目录浏览服务器已启动, 文件目录:" << HttpFileServerPrivate::ROOT_DIR;
+    qInfo() << "目录浏览服务器已启动, 文件目录:" << Util::rootDir();
     qInfo() << "浏览：http://127.0.0.1:80/";
 #ifdef ENABLE_GUI
     d_ptr->showTrayIcon();
@@ -185,4 +197,13 @@ QHostAddress HttpFileServer::hostAddress() const
 quint16 HttpFileServer::port() const
 {
     return d_ptr->port;
+}
+
+void HttpFileServer::addRouter(const QSharedPointer<Router> &router)
+{
+    if (!d_ptr->server) return;
+    if (!router) return;
+
+    d_ptr->server->route(router->pathPattern(), router->requestHandler());
+    d_ptr->routerMap.insert(router->pathPattern(), router);
 }

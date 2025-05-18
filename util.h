@@ -9,10 +9,16 @@ class Util
 {
 public:
     Util();
-    static void handleRequest(const QUrl path, const QHttpServerRequest &request, QHttpServerResponder &responder);
+    static QString readTemplateFile(const QString &filePath);
+    static void respondFile(QHttpServerResponder &responder, const QString &filePath);
+
+    static QString itemTemplate(const QString &icon,const QString &displayName,
+                                const QString &href,
+                                const QString &fileSize = "",
+                                const QString &lastModified = "");
     static bool setRootDir(const QString &dir);
     static QString rootDir();
-private:
+
     struct HtmlItemAccumulator {
     public:
         explicit HtmlItemAccumulator(const QString& path);

@@ -25,10 +25,15 @@ set(PROJECT_SOURCES
   main.cpp
   httpfileserver.h httpfileserver.cpp
   util.h util.cpp
+  router/router.h router/router.cpp
+  router/filerouter.h router/filerouter.cpp
   resource.qrc
   app_icon.rc
 )
-
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/router
+)
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
   if(APPLE)
     qt_add_executable(httpserver MACOSX_BUNDLE ${PROJECT_SOURCES})
@@ -60,4 +65,3 @@ else()
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
 endif()
-

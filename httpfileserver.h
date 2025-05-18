@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QScopedPointer>
 #include <QHostAddress>
+class Router;
 class HttpFileServerPrivate;
 class HttpFileServer final : public QObject
 {
@@ -57,6 +58,11 @@ public:
      * @return quint16 端口号
      */
     quint16 port() const;
+    /**
+     * @brief addRouter 添加路由器
+     * @param router 路由器智能指针
+     */
+    void addRouter(const QSharedPointer<Router>& router);
 
 Q_SIGNALS:
     /**
