@@ -5,6 +5,8 @@
 #include <QMimeDatabase>
 #include <QDir>
 #include <QUrl>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 class UtilPrivate
 {
@@ -38,8 +40,7 @@ void Util::respondFile(QHttpServerResponder &responder, const QString &filePath)
     else
     {
         qWarning() << "无法打开文件" << filePath;
-        responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
-                        QHttpServerResponse::StatusCode::InternalServerError);
+        responder.write(errorJson("Directory or file not found"), QHttpServerResponse::StatusCode::NotFound);
     }
 }
 
@@ -67,6 +68,13 @@ bool Util::setRootDir(const QString &dir)
 QString Util::rootDir()
 {
     return UtilPrivate::ROOT_DIR;
+}
+
+QJsonDocument Util::errorJson(QString message)
+{
+    QJsonObject json;
+    json.insert("message", message);
+    return QJsonDocument(json);
 }
 
 Util::HtmlItemAccumulator::HtmlItemAccumulator(const QString &path)

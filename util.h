@@ -18,6 +18,7 @@ public:
                                 const QString &lastModified = "");
     static bool setRootDir(const QString &dir);
     static QString rootDir();
+    static QJsonDocument errorJson(QString message = "error");
 
     struct HtmlItemAccumulator {
     public:

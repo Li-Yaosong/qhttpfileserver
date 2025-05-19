@@ -5,7 +5,7 @@
 #include <QHttpServerResponse>
 #include <QUrl>
 #include <QDir>
-
+#include <QJsonDocument>
 
 FileRouter::FileRouter(QObject *parent)
     : Router{parent}
@@ -64,12 +64,11 @@ Router::RequestHandler FileRouter::requestHandler()
                 else
                 {
                     qWarning() << "无法访问目录" << pathStr;
-                    responder.write("{\"message\": \"Directory access denied\"}", "application/json",
+                    responder.write(Util::errorJson("Directory access denied"),
                                     QHttpServerResponse::StatusCode::Forbidden);
                 }
             }
         }
-        responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
-                        QHttpServerResponse::StatusCode::NotFound);
+        responder.write(Util::errorJson("Directory or file not found"), QHttpServerResponse::StatusCode::NotFound);
     };
 }
