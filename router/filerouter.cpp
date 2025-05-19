@@ -27,47 +27,49 @@ Router::RequestHandler FileRouter::requestHandler()
         QString pathStr = path.toString();
         if(pathStr.startsWith("*static"))
         {
-            return Util::respondFile(responder, pathStr.replace("*static", ":/html/static"));
+            pathStr.replace("*static", ":/html/static");
         }
         QDir dir(Util::rootDir());
         QFileInfo fileInfo(dir, pathStr);
-        if (!fileInfo.exists())
-            return responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
-                                   QHttpServerResponse::StatusCode::NotFound);
-        if(fileInfo.isFile())
+        if (fileInfo.exists())
         {
-            return Util::respondFile(responder, fileInfo.absoluteFilePath());
-        }
-        else if(fileInfo.isDir())
-        {
-            QString html = Util::readTemplateFile(":/html/index-template.html");
-
-            if(dir.cd(pathStr))
+            if(fileInfo.isFile())
             {
-                if (!pathStr.isEmpty()) {
-                    auto subPathList = pathStr.split("/", Qt::SkipEmptyParts);
-                    pathStr = subPathList.join("/") + "/";
-                    subPathList.removeLast();
-                    QString subPath = subPathList.join("/");
-                    QString parentDirHtml = Util::itemTemplate("icon-arrow-up", "Parent Directory", subPath);
-                    html.replace("${Parent Directory}$", parentDirHtml);
+                return Util::respondFile(responder, fileInfo.absoluteFilePath());
+            }
+            else if(fileInfo.isDir() && fileInfo.isNativePath())
+            {
+                QString html = Util::readTemplateFile(":/html/index-template.html");
+
+                if(dir.cd(pathStr))
+                {
+                    if (!pathStr.isEmpty()) {
+                        auto subPathList = pathStr.split("/", Qt::SkipEmptyParts);
+                        pathStr = subPathList.join("/") + "/";
+                        subPathList.removeLast();
+                        QString subPath = subPathList.join("/");
+                        QString parentDirHtml = Util::itemTemplate("icon-arrow-up", "Parent Directory", subPath);
+                        html.replace("${Parent Directory}$", parentDirHtml);
+                    }
+                    else
+                    {
+                        html.replace("${Parent Directory}$", "");
+                    }
+
+                    const auto infoList = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
+                    html.replace("${file-list}$",
+                                 std::accumulate(infoList.begin(), infoList.end(), QString(), Util::HtmlItemAccumulator(pathStr)));
+                    responder.write(html.toUtf8(), "text/html");
                 }
                 else
                 {
-                    html.replace("${Parent Directory}$", "");
+                    qWarning() << "无法访问目录" << pathStr;
+                    responder.write("{\"message\": \"Directory access denied\"}", "application/json",
+                                    QHttpServerResponse::StatusCode::Forbidden);
                 }
-
-                const auto infoList = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
-                html.replace("${file-list}$",
-                             std::accumulate(infoList.begin(), infoList.end(), QString(), Util::HtmlItemAccumulator(pathStr)));
-                responder.write(html.toUtf8(), "text/html");
-            }
-            else
-            {
-                qWarning() << "无法访问目录" << pathStr;
-                responder.write("{\"message\": \"Directory access denied\"}", "application/json",
-                                QHttpServerResponse::StatusCode::Forbidden);
             }
         }
+        responder.write("{\"message\": \"Directory or file not found\"}", "application/json",
+                        QHttpServerResponse::StatusCode::NotFound);
     };
 }
