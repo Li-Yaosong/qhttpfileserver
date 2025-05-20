@@ -29,12 +29,13 @@ public:
     {
         switch (reason) {
         case QSystemTrayIcon::Unknown:
+            break;
         case QSystemTrayIcon::Context:
+            break;
         case QSystemTrayIcon::DoubleClick:
+            break;
         case QSystemTrayIcon::Trigger:
-            if (isListening) {
-                q_ptr->openRootIndexInBrowser();
-            }
+            if (isListening) q_ptr->openRootIndexInBrowser(); break;
         case QSystemTrayIcon::MiddleClick:
             break;
         }
