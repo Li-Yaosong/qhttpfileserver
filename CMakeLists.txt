@@ -27,6 +27,7 @@ set(PROJECT_SOURCES
   util.h util.cpp
   router/router.h router/router.cpp
   router/filerouter.h router/filerouter.cpp
+  router/staticresourcerouter.h router/staticresourcerouter.cpp
   resource.qrc
   app_icon.rc
 )

@@ -15,6 +15,7 @@
 #include <QProcess>
 #endif
 #include "util.h"
+#include "staticresourcerouter.h"
 class HttpFileServerPrivate : public QObject
 {
 public:
@@ -148,6 +149,7 @@ bool HttpFileServer::listen(const QHostAddress &address, quint16 port)
         qCritical() << "QHttpServer 绑定失败";
         return isListening();
     }
+    addRouter(QSharedPointer<StaticResourceRouter>::create());
     addRouter(QSharedPointer<FileRouter>::create());
 
     qInfo() << "目录浏览服务器已启动, 文件目录:" << Util::rootDir();

@@ -3,7 +3,7 @@
 
 #include "router.h"
 
-class FileRouter final : public Router
+class FileRouter : public Router
 {
     Q_OBJECT
 public:

@@ -24,15 +24,12 @@ QString FileRouter::pathPattern() const
 Router::RequestHandler FileRouter::requestHandler()
 {
     return [](const QUrl path, const QHttpServerRequest &request, QHttpServerResponder &responder) {
+        qDebug() << "FileRouter请求路径:" << path.toString();
         QString pathStr = path.toString();
-        if(pathStr.startsWith("*static"))
-        {
-            pathStr.replace("*static", ":/html/static");
-        }
         QDir dir(Util::rootDir());
-        QFileInfo fileInfo(dir, pathStr);
-        if (fileInfo.exists())
+        if (QFileInfo fileInfo(dir, pathStr); fileInfo.exists())
         {
+            qDebug() << "文件路径:" << pathStr;
             if(fileInfo.isFile())
             {
                 return Util::respondFile(responder, fileInfo.absoluteFilePath());
@@ -68,6 +65,12 @@ Router::RequestHandler FileRouter::requestHandler()
                                     QHttpServerResponse::StatusCode::Forbidden);
                 }
             }
+        }
+        if (QFileInfo fileInfo(pathStr.prepend(":/html/static/")); fileInfo.exists())
+        {
+            qDebug() << "静态文件路径:" << pathStr;
+            if (fileInfo.isFile())
+                return Util::respondFile(responder, fileInfo.absoluteFilePath());
         }
         responder.write(Util::errorJson("Directory or file not found"), QHttpServerResponse::StatusCode::NotFound);
     };
